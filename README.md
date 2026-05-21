@@ -19,7 +19,7 @@ Pokémon base pode ter 1 ou 2 tipos
 Pokémon pode possuir múltiplas formas alternativas
 Cada forma alternativa também possui seus próprios tipos
 Relações N:N tratadas com tabelas intermediárias
-⚙️ Principais funcionalidades implementadas
+  Principais funcionalidades implementadas
 Modelagem relacional completa
 Suporte a formas alternativas (Mega, regionais, etc.)
 Relacionamento normalizado de tipos
