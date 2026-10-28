@@ -1,91 +1,86 @@
- Pokémon VGC Database
- Visão geral do projeto
+# Pokémon VGC Database
 
-Este projeto consiste em um banco de dados relacional desenvolvido em PostgreSQL, com foco em estudo de modelagem de dados e análise de estatísticas de Pokémon em um contexto competitivo (VGC).
+Projeto de estudo em **PostgreSQL e SQL** para organizar Pokémon, formas alternativas, tipos e estatísticas em um banco relacional e explorar esses dados por consultas e visualizações.
 
-O objetivo foi estruturar corretamente dados de Pokémon base e suas formas alternativas, permitindo consultas organizadas e análise comparativa de stats.
+**Disponibilidade:** scripts SQL, modelo relacional e capturas de análises públicos.
 
- Estrutura do banco de dados
+**Foco:** modelagem de dados · relacionamentos · consultas analíticas · visualização.
 
-O modelo foi construído com normalização e separação de entidades principais:
+## Objetivo e participação
 
-pokemon → dados base dos Pokémon
-pokemon_forma → formas alternativas (Mega, regionais, etc.)
-tipo → catálogo de tipos
-pokemon_tipo → relacionamento N:N entre Pokémon base e tipos
-pokemon_forma_tipo → relacionamento N:N entre formas e tipos
- Relacionamentos
-Pokémon base pode ter 1 ou 2 tipos
-Pokémon pode possuir múltiplas formas alternativas
-Cada forma alternativa também possui seus próprios tipos
-Relações N:N tratadas com tabelas intermediárias
-  Principais funcionalidades implementadas
-Modelagem relacional completa
-Suporte a formas alternativas (Mega, regionais, etc.)
-Relacionamento normalizado de tipos
-Agregação de tipos por Pokémon
-Views consolidadas para análise
-Cálculo de Total Base Stats
-Ordenação por Pokédex e forma
- Query principal (visão consolidada)
+Meu trabalho neste projeto reúne a estruturação do modelo relacional, a organização dos scripts e a elaboração de consultas para comparar estatísticas de Pokémon base e suas formas. O repositório também documenta análises no Looker Studio.
 
-A query abaixo une Pokémon base e suas formas alternativas em uma única visualização:
+O contexto competitivo VGC motiva o tema; o projeto não implementa um simulador de batalhas nem um sistema de recomendação de equipes.
 
-SELECT
-pokedex_number, nome, tipos, hp,attack, defense, sp_attack, sp_defense, speed, total_base_stats
-FROM ( SELECT
-LPAD(p.id_pokemon::TEXT, 4, '0') AS pokedex_number, p.nome,
-STRING_AGG(t.nome, ', ') AS tipos, p.hp, p.attack, p.defense, p.sp_attack, p.sp_defense, p.speed,
-(p.hp + p.attack + p.defense + p.sp_attack + p.sp_defense + p.speed) AS total_base_stats, 'BASE' AS origem, 0 AS ordem_forma
+## Modelo relacional
 
-FROM pokemon p
-JOIN pokemon_tipo pt
-ON p.id_pokemon = pt.id_pokemon
-JOIN tipo t
-ON pt.id_tipo = t.id_tipo
+![Modelo relacional com Pokémon, formas alternativas, tipos e tabelas associativas](images/Modelo_relacional.png)
 
-GROUP BY
-p.id_pokemon, p.nome, p.hp, p.attack, p.defense, p.sp_attack, p.sp_defense, p.speed
+| Tabela | Responsabilidade |
+| --- | --- |
+| `pokemon` | Identificação, nome e seis estatísticas dos Pokémon base |
+| `pokemon_forma` | Formas alternativas e suas estatísticas, com referência ao Pokémon base |
+| `tipo` | Catálogo de tipos, com nome único |
+| `pokemon_tipo` | Associação N:N entre Pokémon base e tipos |
+| `pokemon_forma_tipo` | Associação N:N entre formas alternativas e tipos |
 
-UNION ALL
+Os scripts definem chaves primárias, chaves estrangeiras e chaves compostas nas associações. A separação das entidades permite representar formas com tipos e estatísticas diferentes da base.
 
-SELECT
-LPAD(pf.id_pokemon::TEXT, 4, '0') AS pokedex_number,
-pf.nome_forma AS nome,
-STRING_AGG(t.nome, ', ') AS tipos,
-pf.hp, pf.attack, pf.defense, pf.sp_attack, pf.sp_defense, pf.speed,
-(pf.hp + pf.attack + pf.defense + pf.sp_attack + pf.sp_defense + pf.speed) AS total_base_stats,
-'FORMA' AS origem,
-1 AS ordem_forma
+**Limite do esquema:** a regra de até dois tipos por Pokémon não está imposta pelos scripts. A referência de uma forma ao Pokémon base aceita nulo no esquema atual.
 
-FROM pokemon_forma pf
+## Consultas implementadas
 
-JOIN pokemon_forma_tipo pft
-ON pf.id_forma = pft.id_forma
+| Pergunta ou análise | Evidência no repositório |
+| --- | --- |
+| Como consultar base e formas com tipos e total de estatísticas? | [Consulta consolidada](queries/pokemon_completo.sql) e [view](views/vw_pokemon_completo.sql) |
+| Quais são os 15 maiores valores de velocidade, incluindo formas? | [Ranking de velocidade](queries/top_speed.sql) |
+| Quais Pokémon base atingem a maior velocidade, incluindo empates? | [Máximo com subconsulta](queries/Max_speed_exemple.sql) |
+| Qual a média da soma das estatísticas de base e formas? | [Média de stats](queries/media_stats.sql) |
+| Quantos Pokémon base estão associados a cada tipo? | [Contagem por tipo](queries/contagem_pokemon_por_tipo.sql) |
+| Quais Pokémon têm simultaneamente os tipos Fire e Grass? | [Interseção](queries/fire_and_grass_intersect.sql) |
+| Como combinar conjuntos Fire e Grass? | [União](queries/fire_grass_pokemon_union.sql) |
+| Quais Pokémon Flying não têm o tipo Normal? | [Diferença de conjuntos](queries/Flying_Except_Normal.sql) |
+| Quais Pokémon base não possuem forma cadastrada? | [Diferença entre base e formas](queries/except_pokemon_forma.sql) |
 
-JOIN tipo t
-ON pft.id_tipo = t.id_tipo
+As consultas aplicam `JOIN`, `GROUP BY`, `STRING_AGG`, `UNION`, `UNION ALL`, `INTERSECT`, `EXCEPT`, agregações, subconsulta e ordenação. A view calcula a soma das seis estatísticas como `total_base_stats` e consolida base e formas.
 
-GROUP BY
-pf.id_forma, pf.id_pokemon, pf.nome_forma, pf.hp, pf.attack, pf.defense, pf.sp_attack, pf.sp_defense, pf.speed) sub
+## Visualizações já documentadas
 
-ORDER BY pokedex_number, ordem_forma;
+A seção [BI & Analytics](bi/README.md) registra análises no **Looker Studio**, com rankings de velocidade dos tipos Fire e Rock.
 
- Conceitos aplicados
-SQL avançado (JOIN, GROUP BY, UNION ALL)
-Modelagem relacional normalizada
-Agregação com STRING_AGG
-Ordenação com controle de hierarquia (base vs forma)
-Cálculo de estatísticas derivadas
- Objetivo do projeto
+![Captura existente do ranking de velocidade do tipo Fire](bi/screenshots/Fire%20Speed.png)
 
-Este projeto foi desenvolvido para estudo prático de:
+[Ver captura do tipo Rock](bi/screenshots/Rock%20Sped.png).
 
-Banco de dados relacional
-Modelagem de dados complexa
-SQL analítico
-Organização de dados para análise competitiva
- Possíveis melhorias futuras
-API para consulta dos Pokémon
-Dashboard com visualização de stats
-Análise estatística avançada (médias e rankings)
+As imagens são registros das análises existentes. Não há painel interativo publicado neste repositório; a consulta SQL específica que alimentou cada gráfico não está identificada na documentação atual.
+
+## Como explorar os arquivos
+
+1. Comece pelo modelo acima e pelos scripts em [`schema/`](schema/).
+2. Consulte [`data/`](data/) para conhecer os modelos de inserção.
+3. Explore [`queries/`](queries/) e a definição em [`views/`](views/).
+4. Consulte [`bi/`](bi/) para as capturas e a descrição das análises.
+
+### Limitações para executar em um banco novo
+
+- `data/` contém modelos de `INSERT` com marcadores `?`, e não uma carga de dados pronta. Os marcadores precisam ser substituídos ou vinculados por um cliente compatível.
+- Os scripts referenciam as sequências `tipo_id_tipo_seq` e `pokemon_forma_id_forma_seq`, mas não incluem sua criação.
+- Os comandos de propriedade usam o papel `postgres`; outras instalações podem exigir adaptação.
+- Não há base populada nem ambiente automatizado para reproduzir os resultados. Nesta revisão documental, os scripts foram inspecionados, sem execução em PostgreSQL.
+
+## Competências e aprendizados
+
+- Representar entidades e relações N:N com tabelas associativas.
+- Relacionar registros de base e formas sem repetir o catálogo de tipos.
+- Consolidar informações com joins, agregações e operações de conjuntos.
+- Transformar perguntas sobre os dados em consultas SQL e visualizações.
+- Identificar a diferença entre scripts de estudo e um pacote reproduzível de banco de dados.
+
+## Próximos passos
+
+- Completar a preparação das sequências e documentar uma carga de dados reproduzível.
+- Rever as restrições de integridade e a obrigatoriedade dos relacionamentos.
+- Documentar a origem e o recorte dos dados e as consultas usadas nos dashboards.
+- Explorar uma API de consulta e ampliar as análises.
+
+Esses itens são melhorias futuras, não recursos já entregues.
